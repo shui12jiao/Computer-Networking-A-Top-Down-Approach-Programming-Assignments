@@ -1,1 +1,10 @@
+###
 GET http://localhost:8080/ HTTP/1.1
+###
+POST http://localhost:8080/ HTTP/1.1
+###
+GET http://localhost:8080/a.txt HTTP/1.1
+###
+GET http://localhost:8080/d.txt HTTP/1.1
+###
+GET http://localhost:8080/nihao.cpp HTTP/1.1

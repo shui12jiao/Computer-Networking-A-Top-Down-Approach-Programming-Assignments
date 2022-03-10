@@ -44,7 +44,7 @@ func handleConn(conn *net.TCPConn) {
 	}
 	method := method_bt.String()
 	if method != "GET" {
-		writeHeader(conn, 405)
+		writeHeader(conn, 405, 0)
 		return
 	}
 
@@ -60,22 +60,24 @@ func handleConn(conn *net.TCPConn) {
 	fileName := url[1]
 	for _, name := range fileNames {
 		if name == fileName {
-			writeHeader(conn, 200)
-			//put file
+			file, err := ioutil.ReadFile(fileName)
+			if err != nil {
+				fmt.Println("file error: ", err)
+			}
+			len := len(file)
+			writeHeader(conn, 200, len)
+			conn.Write(file)
 			return
 		}
 	}
-	writeHeader(conn, 404)
+	writeHeader(conn, 404, 0)
 
 }
 
-func writeHeader(conn *net.TCPConn, status int) {
-	buf := `HTTP/1.1 %d\r\n
-	Allow: GET\r\n
-	Content-Type: plain
-	\r\n`
+func writeHeader(conn *net.TCPConn, status int, length int) {
+	buf := "HTTP/1.1 %d\r\nContent-Type:text/html\r\nContent-Length:%d\r\n\r\n"
+	header := []byte(fmt.Sprintf(buf, status, length))
 
-	header := []byte(fmt.Sprintf(buf, status))
 	conn.Write(header)
 }
 
