@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"strings"
+	"regexp"
 )
 
 var fileNames []string = getFileNames("./file")
@@ -30,34 +30,24 @@ func getFileNames(path string) (names []string) {
 func handleConn(conn *net.TCPConn) {
 	defer conn.Close()
 
-	buf := make([]byte, 0, 1024)
-	n, err := conn.Read(buf)
+	buf := make([]byte, 1024)
+	_, err := conn.Read(buf)
 	if err != nil {
 		fmt.Println("data error: ", err)
 	}
 
-	i := 0
-	var method_bt strings.Builder
-	for i < n && buf[i] != ' ' {
-		method_bt.WriteByte(buf[i])
-		i++
-	}
-	method := method_bt.String()
+	reg := regexp.MustCompile(`^([A-Z]+)\b /(\w+.\w+)?`)
+	matches := reg.FindAllStringSubmatch(string(buf), 1)
+	method := matches[0][1]
+	fileName := matches[0][2]
+
 	if method != "GET" {
 		writeHeader(conn, 405, 0)
-		return
+	}
+	if fileName == "" {
+		goto NotFound
 	}
 
-	for i < n && buf[i] == ' ' {
-		i++
-	}
-	var url_bt strings.Builder
-	for i < n && buf[i] != ' ' {
-		url_bt.WriteByte(buf[i])
-		i++
-	}
-	url := strings.Split(url_bt.String(), "/")
-	fileName := url[1]
 	for _, name := range fileNames {
 		if name == fileName {
 			file, err := ioutil.ReadFile(fileName)
@@ -70,8 +60,9 @@ func handleConn(conn *net.TCPConn) {
 			return
 		}
 	}
-	writeHeader(conn, 404, 0)
 
+NotFound:
+	writeHeader(conn, 404, 0)
 }
 
 func writeHeader(conn *net.TCPConn, status int, length int) {
