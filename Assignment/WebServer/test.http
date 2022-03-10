@@ -1,10 +1,12 @@
-###
+###无资源名称
 GET http://localhost:8080/ HTTP/1.1
-###
+###错误请求方式
 POST http://localhost:8080/ HTTP/1.1
-###
-GET http://localhost:8080/a.txt HTTP/1.1
-###
-GET http://localhost:8080/d.txt HTTP/1.1
-###
-GET http://localhost:8080/nihao.cpp HTTP/1.1
+###找不到请求资源
+GET http://localhost:8080/file/a.nya HTTP/1.1
+###正确请求
+GET http://localhost:8080/file/c.dat HTTP/1.1
+###正确请求
+GET http://localhost:8080/file/sub_file1/nihao.cpp HTTP/1.1
+###正确请求
+GET http://localhost:8080/file/b.webp HTTP/1.1

@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"strings"
 )
 
 var fileNames []string = getFileNames("./file")
@@ -22,7 +23,7 @@ func getFileNames(path string) (names []string) {
 			tmp := getFileNames(path + "/" + fi.Name())
 			names = append(names, tmp...)
 		}
-		names = append(names, fi.Name())
+		names = append(names, path+"/"+fi.Name())
 	}
 	return
 }
@@ -36,39 +37,43 @@ func handleConn(conn *net.TCPConn) {
 		fmt.Println("data error: ", err)
 	}
 
-	reg := regexp.MustCompile(`^([A-Z]+)\b /(\w+.\w+)?`)
+	reg := regexp.MustCompile(`^([A-Z]+)\b (/.+)\b `)
 	matches := reg.FindAllStringSubmatch(string(buf), 1)
 	method := matches[0][1]
 	fileName := matches[0][2]
 
+	cType := "text/html"
 	if method != "GET" {
-		writeHeader(conn, 405, 0)
-	}
-	if fileName == "" {
-		goto NotFound
+		writeHeader(conn, 405, 0, cType)
 	}
 
 	for _, name := range fileNames {
-		if name == fileName {
-			file, err := ioutil.ReadFile(fileName)
+		if "."+fileName == name {
+			file, err := ioutil.ReadFile(name)
+			//TODO  增加file buffer
+			//TODO  content-type分析
+
 			if err != nil {
 				fmt.Println("file error: ", err)
 			}
 			len := len(file)
-			writeHeader(conn, 200, len)
+
+			tmp := strings.Split(fileName, ".")
+			if tmp[1] != "" {
+				cType = tmp[1]
+			}
+			writeHeader(conn, 200, len, cType)
 			conn.Write(file)
 			return
 		}
 	}
 
-NotFound:
-	writeHeader(conn, 404, 0)
+	writeHeader(conn, 404, 0, cType)
 }
 
-func writeHeader(conn *net.TCPConn, status int, length int) {
-	buf := "HTTP/1.1 %d\r\nContent-Type:text/html\r\nContent-Length:%d\r\n\r\n"
-	header := []byte(fmt.Sprintf(buf, status, length))
-
+func writeHeader(conn *net.TCPConn, status int, length int, cType string) {
+	buf := "HTTP/1.1 %d\r\nContent-Type:%s\r\nContent-Length:%d\r\n\r\n"
+	header := []byte(fmt.Sprintf(buf, status, cType, length))
 	conn.Write(header)
 }
 
