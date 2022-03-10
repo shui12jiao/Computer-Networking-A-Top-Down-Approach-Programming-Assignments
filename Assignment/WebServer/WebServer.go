@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
+	"strings"
 )
 
 var fileNames []string = getFileNames("./file")
@@ -25,9 +27,56 @@ func getFileNames(path string) (names []string) {
 	return
 }
 
-func HandleConn(conn net.TCPConn)
+func handleConn(conn *net.TCPConn) {
 	defer conn.Close()
-	buf := conn.Read()
+
+	buf := make([]byte, 0, 1024)
+	n, err := conn.Read(buf)
+	if err != nil {
+		fmt.Println("data error: ", err)
+	}
+
+	i := 0
+	var method_bt strings.Builder
+	for i < n && buf[i] != ' ' {
+		method_bt.WriteByte(buf[i])
+		i++
+	}
+	method := method_bt.String()
+	if method != "GET" {
+		writeHeader(conn, 405)
+		return
+	}
+
+	for i < n && buf[i] == ' ' {
+		i++
+	}
+	var url_bt strings.Builder
+	for i < n && buf[i] != ' ' {
+		url_bt.WriteByte(buf[i])
+		i++
+	}
+	url := strings.Split(url_bt.String(), "/")
+	fileName := url[1]
+	for _, name := range fileNames {
+		if name == fileName {
+			writeHeader(conn, 200)
+			//put file
+			return
+		}
+	}
+	writeHeader(conn, 404)
+
+}
+
+func writeHeader(conn *net.TCPConn, status int) {
+	buf := `HTTP/1.1 %d\r\n
+	Allow: GET\r\n
+	Content-Type: plain
+	\r\n`
+
+	header := []byte(fmt.Sprintf(buf, status))
+	conn.Write(header)
 }
 
 func main() {
@@ -40,14 +89,14 @@ func main() {
 	if err != nil {
 		fmt.Println("listen error: ", err)
 	}
+	defer listen.Close()
 
 	for {
 		conn, err := listen.AcceptTCP()
 		if err != nil {
-			fmt.Printf("accept error: ", err)
+			fmt.Println("accept error: ", err)
 		}
-		go HandleConn(conn)
+		go handleConn(conn)
 
 	}
-	fmt.Println(fileNames)
 }
