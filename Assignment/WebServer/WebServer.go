@@ -37,7 +37,7 @@ func handleConn(conn *net.TCPConn) {
 		fmt.Println("data error: ", err)
 	}
 
-	reg := regexp.MustCompile(`^([A-Z]+)\b (/.+)\b `)
+	reg := regexp.MustCompile(`^([A-Z]+)\b (/.*) \b`)
 	matches := reg.FindAllStringSubmatch(string(buf), 1)
 	method := matches[0][1]
 	fileName := matches[0][2]
