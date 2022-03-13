@@ -17,14 +17,16 @@ func pingUDP(conn *net.UDPConn, ch chan time.Duration) {
 	start := time.Now()
 	conn.Write([]byte(msg))
 	buf := make([]byte, 16)
+	conn.SetReadDeadline(start.Add(time.Second))
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			fmt.Print("read error: ", err)
+			fmt.Println("read error: ", err)
+			ch <- time.Hour
+			return
 		}
-
-		dur := time.Since(start)
-		if n != 0 || dur > time.Second {
+		if n != 0 {
+			dur := time.Since(start)
 			fmt.Printf("recv: %s\n", string(buf))
 			ch <- dur
 			return
@@ -36,10 +38,7 @@ func pingUDP(conn *net.UDPConn, ch chan time.Duration) {
 func main() {
 	socket := "localhost:80"
 	if arg := os.Args[1]; arg != "" {
-		reg := regexp.MustCompile(`^(localhost|(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|[1-9])\.
-		(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.
-		(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.
-		(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d))?:\d+$`)
+		reg := regexp.MustCompile(`^(localhost|(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|[1-9])\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d)\.(1\d{2}|2[0-4]\d|25[0-5]|[1-9]\d|\d))?:\d+$`)
 		if reg.MatchString(arg) {
 			if arg[0] == ':' {
 				socket = "localhost" + arg
@@ -89,12 +88,24 @@ func main() {
 	close(ch)
 
 	for idx, dur := range durations {
-		var durS string
 		if dur > time.Second {
-			durS = "timeout"
+			fmt.Printf("%d. Reply from %s: bytes=14 timeout\n", idx+1, socket)
+		} else if dur < time.Millisecond {
+			fmt.Printf("%d. Reply from %s: bytes=14 time<1ms\n", idx+1, socket)
 		} else {
-			durS = strconv.Itoa(int(dur / 1e6))
+			fmt.Printf("%d. Reply from %s: bytes=14 time=%dms\n", idx+1, socket, dur/1e6)
 		}
-		fmt.Printf("%d. Reply from %s: bytes=14 time=%sms", idx+1, socket, durS)
 	}
 }
+
+//TODO 格式
+// Pinging baidu.com [220.181.38.251] with 32 bytes of data:
+// Reply from 220.181.38.251: bytes=32 time=29ms TTL=53
+// Reply from 220.181.38.251: bytes=32 time=29ms TTL=53
+// Reply from 220.181.38.251: bytes=32 time=29ms TTL=53
+// Reply from 220.181.38.251: bytes=32 time=31ms TTL=53
+
+// Ping statistics for 220.181.38.251:
+//     Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),
+// Approximate round trip times in milli-seconds:
+//     Minimum = 29ms, Maximum = 31ms, Average = 29ms
