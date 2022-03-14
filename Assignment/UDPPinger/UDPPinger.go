@@ -21,13 +21,13 @@ func pingUDP(conn *net.UDPConn, ch chan time.Duration) {
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			fmt.Println("read error: ", err)
+			// fmt.Println("read error: ", err)
 			ch <- time.Hour
 			return
 		}
 		if n != 0 {
 			dur := time.Since(start)
-			fmt.Printf("recv: %s\n", string(buf))
+			// fmt.Printf("recv: %s\n", string(buf))
 			ch <- dur
 			return
 		}
@@ -66,7 +66,6 @@ func main() {
 	}
 
 	ch := make(chan time.Duration, times)
-	durations := make([]time.Duration, times)
 
 	for i := 0; i < times; i++ {
 		conn, err := net.DialUDP("udp", nil, udpAddr)
@@ -74,38 +73,40 @@ func main() {
 			fmt.Printf("dial %d error: %s\n", i+1, err.Error())
 			continue
 		}
-		time.Sleep(time.Duration(time.Second))
 		go pingUDP(conn, ch)
 	}
 
+	var avgTime time.Duration
+	var maxTime time.Duration
+	var minTime time.Duration = time.Hour
+	var recvNum int
+	fmt.Printf("Pinging [%s] with 14 bytes of data:\n", socket)
 	for i := 0; i < times; i++ {
-		time, ok := <-ch
+		dur, ok := <-ch
 		if !ok {
 			fmt.Println("something wrong with channel")
 		}
-		durations[i] = time
-	}
-	close(ch)
 
-	for idx, dur := range durations {
 		if dur > time.Second {
-			fmt.Printf("%d. Reply from %s: bytes=14 timeout\n", idx+1, socket)
+			fmt.Println("Request timed out.")
 		} else if dur < time.Millisecond {
-			fmt.Printf("%d. Reply from %s: bytes=14 time<1ms\n", idx+1, socket)
+			fmt.Printf("Reply from %s: bytes=14 time<1ms\n", socket)
+			recvNum++
 		} else {
-			fmt.Printf("%d. Reply from %s: bytes=14 time=%dms\n", idx+1, socket, dur/1e6)
+			fmt.Printf("Reply from %s: bytes=14 time=%dms\n", socket, dur/1e6)
+			recvNum++
+			avgTime += dur
+			if dur > maxTime {
+				maxTime = dur
+			}
+			if dur < minTime {
+				minTime = dur
+			}
 		}
 	}
+	close(ch)
+	fmt.Printf("\nPing statistics for [%s]:\n", socket)
+	fmt.Printf("    Packets: Sent = %d, Received = %d, Lost = %d (%d%% loss)\n", times, recvNum, times-recvNum, (times-recvNum)*100/times)
+	fmt.Println("Approximate round trip times in milli-seconds:")
+	fmt.Printf("    Minimum = %dms, Maximum = %dms, Average = %dms", minTime/1e6, maxTime/1e6, avgTime/time.Duration(recvNum)/1e6)
 }
-
-//TODO 格式
-// Pinging baidu.com [220.181.38.251] with 32 bytes of data:
-// Reply from 220.181.38.251: bytes=32 time=29ms TTL=53
-// Reply from 220.181.38.251: bytes=32 time=29ms TTL=53
-// Reply from 220.181.38.251: bytes=32 time=29ms TTL=53
-// Reply from 220.181.38.251: bytes=32 time=31ms TTL=53
-
-// Ping statistics for 220.181.38.251:
-//     Packets: Sent = 4, Received = 4, Lost = 0 (0% loss),
-// Approximate round trip times in milli-seconds:
-//     Minimum = 29ms, Maximum = 31ms, Average = 29ms
