@@ -15,7 +15,7 @@ func getFileNames(path string) (names []string) {
 	names = make([]string, 3)
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
-		fmt.Println("server error: ", err)
+		fmt.Println("server error:", err)
 	}
 
 	for _, fi := range files {
@@ -34,7 +34,7 @@ func handleConn(conn *net.TCPConn) {
 	buf := make([]byte, 1024)
 	_, err := conn.Read(buf)
 	if err != nil {
-		fmt.Println("data error: ", err)
+		fmt.Println("data error:", err)
 	}
 
 	reg := regexp.MustCompile(`^([A-Z]+)\b (/.*) \b`)
@@ -54,7 +54,7 @@ func handleConn(conn *net.TCPConn) {
 			//TODO  content-type分析
 
 			if err != nil {
-				fmt.Println("file error: ", err)
+				fmt.Println("file error:", err)
 			}
 			len := len(file)
 
@@ -80,19 +80,19 @@ func writeHeader(conn *net.TCPConn, status int, length int, cType string) {
 func main() {
 	tcpServer, err := net.ResolveTCPAddr("tcp", ":"+os.Args[1])
 	if err != nil {
-		fmt.Println("port error: ", err)
+		fmt.Println("port error:", err)
 	}
 
 	listen, err := net.ListenTCP("tcp", tcpServer)
 	if err != nil {
-		fmt.Println("listen error: ", err)
+		fmt.Println("listen error:", err)
 	}
 	defer listen.Close()
 
 	for {
 		conn, err := listen.AcceptTCP()
 		if err != nil {
-			fmt.Println("accept error: ", err)
+			fmt.Println("accept error:", err)
 		}
 		go handleConn(conn)
 

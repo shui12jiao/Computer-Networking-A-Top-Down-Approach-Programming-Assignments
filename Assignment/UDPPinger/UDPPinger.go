@@ -21,7 +21,7 @@ func pingUDP(conn *net.UDPConn, ch chan time.Duration) {
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
-			// fmt.Println("read error: ", err)
+			// fmt.Println("read error:", err)
 			ch <- time.Hour
 			return
 		}
@@ -54,7 +54,7 @@ func main() {
 	if os.Args[2] != "" {
 		n, err := strconv.Atoi(os.Args[2])
 		if err != nil {
-			fmt.Println("arg times error: ", err)
+			fmt.Println("arg times error:", err)
 		} else {
 			times = n
 		}
@@ -62,7 +62,7 @@ func main() {
 
 	udpAddr, err := net.ResolveUDPAddr("udp", socket)
 	if err != nil {
-		fmt.Println("socket error: ", err)
+		fmt.Println("socket error:", err)
 	}
 
 	ch := make(chan time.Duration, times)
@@ -70,7 +70,7 @@ func main() {
 	for i := 0; i < times; i++ {
 		conn, err := net.DialUDP("udp", nil, udpAddr)
 		if err != nil {
-			fmt.Printf("dial %d error: %s\n", i+1, err.Error())
+			fmt.Printf("dial %d error:%s\n", i+1, err.Error())
 			continue
 		}
 		go pingUDP(conn, ch)
