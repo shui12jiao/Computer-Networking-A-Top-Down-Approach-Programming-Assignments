@@ -1,0 +1,2 @@
+###
+GET localhost:8080/www.baidu.com HTTP/1.1

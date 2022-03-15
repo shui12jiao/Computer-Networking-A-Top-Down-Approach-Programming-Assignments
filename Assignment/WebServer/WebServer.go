@@ -45,6 +45,7 @@ func handleConn(conn *net.TCPConn) {
 	cType := "text/html"
 	if method != "GET" {
 		writeHeader(conn, 405, 0, cType)
+		return
 	}
 
 	for _, name := range fileNames {
