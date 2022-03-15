@@ -1,60 +1,80 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
-	"net/smtp"
+	"net"
 )
 
-func main() {
-	msg := "\r\n I love computer networks!"
-	endmsg := "\r\n.\r\n"
+func sendAndRecv(conn net.Conn, msg, vrfy string) {
+	if msg != "" {
+		conn.Read([]byte(msg))
+	}
+	recv := make([]byte, 1024)
+	_, err := conn.Read(recv)
+	if err != nil {
+		fmt.Println("read error:", err)
+		return
+	}
+	recvStr := string(recv)
+	fmt.Println(recvStr)
+	if recvStr[:3] != vrfy {
+		fmt.Printf("%s reply not received from server.\n", vrfy)
+		return
+	}
+}
 
+func main() {
 	// Choose a mail server (e.g. Google mail server) and call it mailserver
 	mailserver := "smtp.qq.com:465"
 
 	// Create socket called clientSocket and establish a TCP connection with mailserver
-	clientSocket, err := smtp.Dial(mailserver)
+	clientSocket, err := net.Dial("tcp", mailserver)
 	if err != nil {
 		fmt.Println("dial error:", err)
 		return
 	}
 	defer clientSocket.Close()
-	clientSocket.Mail(msg)
 
-	// recv := clientSocket.recv(1024).decode()
-	// print(recv)
-	// if recv[:3] != '220':
-	//     print('220 reply not received from server.')
+	sendAndRecv(clientSocket, "", "220")
 
-	// // Send HELO command and print server response.
-	// heloCommand = 'HELO Alice\r\n'
-	// clientSocket.send(heloCommand.encode())
-	// recv1 = clientSocket.recv(1024).decode()
-	// print(recv1)
-	// if recv1[:3] != '250':
-	//     print('250 reply not received from server.')
+	// Send HELO command and print server response.
+	heloCommand := "HELO Alice\r\n"
+	sendAndRecv(clientSocket, heloCommand, "250")
+
+	// Send AUTH LOGIN command and print server response.
+	authCommand := "AUTH LOGIN\r\n"
+	sendAndRecv(clientSocket, authCommand, "334")
+	mail := "1873978303@qq.com"
+	password := "swloksfjdvxufdch"
+	mailBase64 := base64.StdEncoding.EncodeToString([]byte(mail)) + "\r\n"
+	passwordBase64 := base64.StdEncoding.EncodeToString([]byte(password)) + "\r\n"
+	sendAndRecv(clientSocket, mailBase64, "334")
+	sendAndRecv(clientSocket, passwordBase64, "334")
+	sendAndRecv(clientSocket, "", "235")
 
 	// Send MAIL FROM command and print server response.
-	// Fill in start
-	// Fill in end
+	mailCommand := fmt.Sprintf("MAIL FROM:%s\r\n", mail)
+	sendAndRecv(clientSocket, mailCommand, "250")
 
 	// Send RCPT TO command and print server response.
-	// Fill in start
-	// Fill in end
+	recpCommand := fmt.Sprintf("RECP TO:%s\r\n", mail)
+	sendAndRecv(clientSocket, recpCommand, "250")
 
 	// Send DATA command and print server response.
-	// Fill in start
-	// Fill in end
+	dataCommand := "DATA\r\n"
+	sendAndRecv(clientSocket, dataCommand, "354")
 
 	// Send message data.
-	// Fill in start
-	// Fill in end
+	content := fmt.Sprintf("from:%s\r\nto:%s\r\nsubject:%s\r\n")
+	msg := "\r\n I love computer networks!"
+	sendAndRecv(clientSocket, msg, "250")
 
 	// Message ends with a single period.
-	// Fill in start
-	// Fill in end
+	endmsg := "\r\n.\r\n"
+	sendAndRecv(clientSocket, endmsg, "250")
 
 	// Send QUIT command and get server response.
-	// Fill in start
-	// Fill in end
+	quitCommand := "QUIT\r\n"
+	sendAndRecv(clientSocket, quitCommand, "221")
 }
