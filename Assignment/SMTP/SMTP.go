@@ -8,9 +8,12 @@ import (
 
 func sendAndRecv(conn net.Conn, msg, vrfy string) {
 	if msg != "" {
-		conn.Read([]byte(msg))
+		conn.Write([]byte(msg))
 	}
 	recv := make([]byte, 1024)
+	if vrfy == "" {
+		return
+	}
 	_, err := conn.Read(recv)
 	if err != nil {
 		fmt.Println("read error:", err)
@@ -19,14 +22,14 @@ func sendAndRecv(conn net.Conn, msg, vrfy string) {
 	recvStr := string(recv)
 	fmt.Println(recvStr)
 	if recvStr[:3] != vrfy {
-		fmt.Printf("%s reply not received from server.\n", vrfy)
+		fmt.Printf("error: %s reply not received from server.\n", vrfy)
 		return
 	}
 }
 
 func main() {
 	// Choose a mail server (e.g. Google mail server) and call it mailserver
-	mailserver := "smtp.qq.com:465"
+	mailserver := "smtp.qq.com:587"
 
 	// Create socket called clientSocket and establish a TCP connection with mailserver
 	clientSocket, err := net.Dial("tcp", mailserver)
@@ -46,19 +49,19 @@ func main() {
 	authCommand := "AUTH LOGIN\r\n"
 	sendAndRecv(clientSocket, authCommand, "334")
 	mail := "1873978303@qq.com"
-	password := "swloksfjdvxufdch"
+	// password := "swloksfjdvxufdch"
+	password := "harkepzllstvfbgi"
 	mailBase64 := base64.StdEncoding.EncodeToString([]byte(mail)) + "\r\n"
 	passwordBase64 := base64.StdEncoding.EncodeToString([]byte(password)) + "\r\n"
 	sendAndRecv(clientSocket, mailBase64, "334")
-	sendAndRecv(clientSocket, passwordBase64, "334")
-	sendAndRecv(clientSocket, "", "235")
+	sendAndRecv(clientSocket, passwordBase64, "235")
 
 	// Send MAIL FROM command and print server response.
-	mailCommand := fmt.Sprintf("MAIL FROM:%s\r\n", mail)
+	mailCommand := fmt.Sprintf("MAIL FROM:<%s>\r\n", mail)
 	sendAndRecv(clientSocket, mailCommand, "250")
 
 	// Send RCPT TO command and print server response.
-	recpCommand := fmt.Sprintf("RECP TO:%s\r\n", mail)
+	recpCommand := fmt.Sprintf("RCPT TO:<%s>\r\n", mail)
 	sendAndRecv(clientSocket, recpCommand, "250")
 
 	// Send DATA command and print server response.
@@ -66,9 +69,9 @@ func main() {
 	sendAndRecv(clientSocket, dataCommand, "354")
 
 	// Send message data.
-	content := fmt.Sprintf("from:%s\r\nto:%s\r\nsubject:%s\r\n")
-	msg := "\r\n I love computer networks!"
-	sendAndRecv(clientSocket, msg, "250")
+	msg := "I love computer networks!"
+	content := fmt.Sprintf("from:%s\r\nto:%s\r\nsubject:%s\r\n\r\n%s", mail, mail, "this is a demo", msg)
+	sendAndRecv(clientSocket, content, "")
 
 	// Message ends with a single period.
 	endmsg := "\r\n.\r\n"
