@@ -11,8 +11,7 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "args": [
-                ":12000",
-                "4"
+                "8888",
             ],
         }
     ]

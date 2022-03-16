@@ -1,2 +1,4 @@
 ###
-GET localhost:8080/www.baidu.com HTTP/1.1
+GET http://localhost:8080/www.baidu.com/test/sec/kk.cpp HTTP/1.1
+###
+GET http://localhost:8080/localhost:8888/file/b.webp HTTP/1.1

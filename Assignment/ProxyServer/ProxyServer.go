@@ -9,7 +9,18 @@ import (
 
 func dialServer(url string) []byte {
 	res := strings.SplitN(url, "/", 2)
-	address := res[0] + ":80"
+	address := res[0]
+
+	// hasPort := false
+	// for _, c := range address {
+	// 	if c == ':' {
+	// 		hasPort = true
+	// 		break
+	// 	}
+	// }
+	// if !hasPort {
+	// 	address += ":80"
+	// }
 	// file := res[1]
 
 	conn, err := net.Dial("tcp", address)
@@ -40,8 +51,7 @@ func handleConn(conn net.Conn) {
 	if err != nil {
 		fmt.Println("read error:", err)
 	}
-	fmt.Println(string(buf))
-	reg := regexp.MustCompile(`^([A-Z]+)\b /(.*) \b`)
+	reg := regexp.MustCompile(`^([A-Z]+)\b /([^\s]*) \b`)
 	matches := reg.FindAllStringSubmatch(string(buf), 1)
 	method := matches[0][1] //--------------------go on
 	url := matches[0][2]
@@ -60,7 +70,9 @@ func handleConn(conn net.Conn) {
 		fmt.Println("get file error:", err)
 		return
 	}
+
 	conn.Write(file)
+	fmt.Println(string(file))
 }
 
 func writeRespHeader(conn net.Conn, status int, length int, cType string) {
@@ -69,8 +81,8 @@ func writeRespHeader(conn net.Conn, status int, length int, cType string) {
 	conn.Write(header)
 }
 
-func writeReqHeader(conn net.Conn, url string) {
-	header := []byte(fmt.Sprintf("GET %s HTTP/1.1\r\n\r\n", url))
+func writeReqHeader(conn net.Conn, adr string) {
+	header := []byte(fmt.Sprintf("GET http://%s HTTP/1.1\r\n", adr))
 	conn.Write(header)
 }
 
