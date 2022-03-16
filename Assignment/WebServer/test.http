@@ -1,12 +1,14 @@
 ###无资源名称
-GET http://localhost:8888/ HTTP/1.1
+GET http://localhost:8888/ HTTP/1.0
 ###错误请求方式
-POST http://localhost:8888/ HTTP/1.1
+POST http://localhost:8888/ HTTP/1.0
 ###找不到请求资源
-GET http://localhost:8888/file/a.nya HTTP/1.1
+GET http://localhost:8888/file/a.nya HTTP/1.0
 ###正确请求
-GET http://localhost:8888/file/c.dat HTTP/1.1
+GET http://localhost:8888/file/a.txt HTTP/1.0
 ###正确请求
-GET http://localhost:8888/file/sub_file1/nihao.cpp HTTP/1.1
+GET http://localhost:8888/file/c.dat HTTP/1.0
 ###正确请求
-GET http://localhost:8888/file/b.webp HTTP/1.1
+GET http://localhost:8888/file/sub_file1/nihao.cpp HTTP/1.0
+###正确请求
+GET http://localhost:8888/file/b.webp HTTP/1.0

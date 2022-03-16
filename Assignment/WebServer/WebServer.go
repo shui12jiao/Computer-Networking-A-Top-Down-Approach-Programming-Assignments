@@ -10,6 +10,12 @@ import (
 )
 
 var fileNames []string = getFileNames("./file")
+var extCType map[string]string = map[string]string{
+	"txt":  "text/html",
+	"dat":  "application/octet-stream",
+	"cpp":  "text/html",
+	"webp": "image/webp",
+}
 
 func getFileNames(path string) (names []string) {
 	names = make([]string, 3)
@@ -44,7 +50,7 @@ func handleConn(conn *net.TCPConn) {
 
 	cType := "text/html"
 	if method != "GET" {
-		writeHeader(conn, 405, 0, cType)
+		conn.Write(respHeader(405, 0, cType))
 		return
 	}
 
@@ -61,21 +67,22 @@ func handleConn(conn *net.TCPConn) {
 
 			tmp := strings.Split(fileName, ".")
 			if tmp[1] != "" {
-				cType = tmp[1]
+				cType = extCType[tmp[1]]
 			}
-			writeHeader(conn, 200, len, cType)
-			conn.Write(file)
+			response := respHeader(200, len, cType)
+			response = append(response, file...)
+			conn.Write(response)
 			return
 		}
 	}
 
-	writeHeader(conn, 404, 0, cType)
+	conn.Write(respHeader(404, 0, cType))
 }
 
-func writeHeader(conn *net.TCPConn, status int, length int, cType string) {
-	buf := "HTTP/1.1 %d\r\nContent-Type:%s\r\nContent-Length:%d\r\n\r\n"
-	header := []byte(fmt.Sprintf(buf, status, cType, length))
-	conn.Write(header)
+func respHeader(status int, length int, cType string) (header []byte) {
+	buf := "HTTP/1.0 %d\r\nContent-Type:%s\r\nContent-Length:%d\r\n\r\n"
+	header = []byte(fmt.Sprintf(buf, status, cType, length))
+	return
 }
 
 func main() {
