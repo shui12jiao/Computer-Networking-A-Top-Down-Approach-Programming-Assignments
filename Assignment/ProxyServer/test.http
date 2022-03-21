@@ -1,5 +1,7 @@
 ###
-GET http://localhost:8080/www.baidu.com/test/sec/kk.cpp HTTP/1.0
+GET http://localhost:8080/localhost:8888/test/sec/kk.cpp HTTP/1.0
+###
+POST http://localhost:8080/www.baidu.com/test/sec/kk.cpp HTTP/1.0
 ###
 GET http://localhost:8080/localhost:8888/file/sub_file1/nihao.cpp HTTP/1.0
 ###
@@ -8,3 +10,5 @@ GET http://localhost:8080/localhost:8888/file/a.txt HTTP/1.0
 GET http://localhost:8080/localhost:8888/file/c.dat HTTP/1.0
 ###
 GET http://localhost:8080/localhost:8888/file/b.webp HTTP/1.0
+###
+GET http://localhost:8080/www.baidu.com/index.html HTTP/1.0

@@ -45,10 +45,14 @@ func handleConn(conn *net.TCPConn) {
 
 	reg := regexp.MustCompile(`^([A-Z]+)\b ([^\s]+) \b`)
 	matches := reg.FindAllStringSubmatch(string(buf), 1)
+	cType := "text/html"
+	if len(matches) < 1 || len(matches[0]) < 2 {
+		conn.Write(respHeader(501, 0, cType))
+		return
+	}
 	method := matches[0][1]
 	fileName := matches[0][2]
 
-	cType := "text/html"
 	if method != "GET" {
 		conn.Write(respHeader(405, 0, cType))
 		return
@@ -58,7 +62,6 @@ func handleConn(conn *net.TCPConn) {
 		if "."+fileName == name {
 			file, err := ioutil.ReadFile(name)
 			//TODO  增加file buffer
-			//TODO  content-type分析
 
 			if err != nil {
 				fmt.Println("file error:", err)

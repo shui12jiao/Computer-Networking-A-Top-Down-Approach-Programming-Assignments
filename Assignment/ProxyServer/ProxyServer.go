@@ -1,20 +1,30 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"regexp"
 	"strings"
 )
 
-func dialServer(url string) []byte {
+func urlHandle(url string) (address, fileName string) {
 	res := strings.SplitN(url, "/", 2)
-	if len(res) < 2 {
-		return nil
+	address = res[0]
+	if strings.IndexRune(address, ':') == -1 {
+		address += ":80"
 	}
-	address := res[0]
-	fileName := res[1]
+	if len(res) < 2 {
+		fileName = "index.html"
+	} else {
+		fileName = res[1]
+	}
+	return
+}
 
+func dialServer(url string) []byte {
+	address, fileName := urlHandle(url)
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		fmt.Println("dial server error:", err)
@@ -22,16 +32,17 @@ func dialServer(url string) []byte {
 	}
 	defer conn.Close()
 
-	conn.Write(reqHeader(fileName, address))
+	conn.Write(reqHeader(address, fileName))
 
-	response := make([]byte, 1024)
-	_, err = conn.Read(response)
+	// response := make([]byte, 1024)
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, conn)
 	if err != nil {
 		fmt.Println("server error:", err)
 		return nil
 	}
 
-	return response
+	return buf.Bytes()
 }
 
 // var buffers map[string][]byte = make(map[string][]byte)
@@ -46,14 +57,15 @@ func handleConn(conn net.Conn) {
 	}
 	reg := regexp.MustCompile(`^([A-Z]+)\b /([^\s]*) \b`)
 	matches := reg.FindAllStringSubmatch(string(buf), 1)
-	if len(matches[0]) < 2 {
-		fmt.Println("error parameter")
+	cType := "text/html"
+	if len(matches) < 1 || len(matches[0]) < 2 {
+		conn.Write(respHeader(501, 0, cType))
+		return
 	}
 	method := matches[0][1] //--------------------go on
 	url := matches[0][2]
-	cType := "text/html"
 	if len(url) < 3 {
-		conn.Write(respHeader(404, 0, cType))
+		conn.Write(respHeader(501, 0, cType))
 		return
 	}
 	if method != "GET" {
@@ -63,7 +75,7 @@ func handleConn(conn net.Conn) {
 
 	response := dialServer(url)
 	if response == nil {
-		fmt.Println("error parameter")
+		conn.Write(respHeader(404, 0, cType))
 		return
 	}
 
@@ -77,7 +89,7 @@ func respHeader(status int, length int, cType string) (header []byte) {
 	return
 }
 
-func reqHeader(fileName, host string) (header []byte) {
+func reqHeader(host, fileName string) (header []byte) {
 	str := "GET /%s HTTP/1.0\r\nHost: %s\r\n"
 	header = []byte(fmt.Sprintf(str, fileName, host))
 	return
