@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
 var fileNames []string = getFileNames("./file")
@@ -15,6 +16,7 @@ var extCType map[string]string = map[string]string{
 	"dat":  "application/octet-stream",
 	"cpp":  "text/html",
 	"webp": "image/webp",
+	"jpeg": "image/jpeg",
 }
 
 func getFileNames(path string) (names []string) {
@@ -74,6 +76,7 @@ func handleConn(conn *net.TCPConn) {
 			}
 			response := respHeader(200, len, cType)
 			response = append(response, file...)
+			time.Sleep(time.Millisecond * 500) // ProxyServer buffer test
 			conn.Write(response)
 			return
 		}

@@ -12,7 +12,7 @@ import (
 func urlHandle(url string) (address, fileName string) {
 	res := strings.SplitN(url, "/", 2)
 	address = res[0]
-	if strings.IndexRune(address, ':') == -1 {
+	if !strings.ContainsRune(address, ':') {
 		address += ":80"
 	}
 	if len(res) < 2 {
@@ -70,7 +70,7 @@ func handleConn(conn net.Conn) {
 		conn.Write(respHeader(501, 0, cType))
 		return
 	}
-	method := matches[0][1] //--------------------go on
+	method := matches[0][1]
 	url := matches[0][2]
 	if len(url) < 3 {
 		conn.Write(respHeader(501, 0, cType))

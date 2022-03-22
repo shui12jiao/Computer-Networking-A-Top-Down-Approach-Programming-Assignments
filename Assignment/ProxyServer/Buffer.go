@@ -12,7 +12,7 @@ const (
 	GB     = 1024 * MB
 )
 
-var FileBuffer buffer = initBuffer(2 * MB)
+var FileBuffer buffer = initBuffer(18 * KB)
 
 type value struct {
 	url  string
@@ -70,6 +70,9 @@ func (buf *buffer) removeFile() error {
 	if buf.freeSize == buf.maxSize {
 		return fmt.Errorf("buffer empty, free size %d", buf.freeSize)
 	}
-	buf.list.Remove(buf.list.Back())
+	e := buf.list.Back()
+	cap := cap(*e.Value.(value).file)
+	buf.list.Remove(e)
+	buf.freeSize += cap
 	return nil
 }
