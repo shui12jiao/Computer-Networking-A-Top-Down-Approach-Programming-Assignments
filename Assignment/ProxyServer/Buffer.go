@@ -17,6 +17,7 @@ var FileBuffer buffer = initBuffer(18 * KB)
 type value struct {
 	url  string
 	file *[]byte
+	cap  int
 }
 
 type buffer struct {
@@ -30,7 +31,7 @@ func initBuffer(size int) buffer {
 		size = 0
 	}
 	buf := buffer{
-		list:     *list.New().Init(),
+		list:     list.List{},
 		maxSize:  size,
 		freeSize: size,
 	}
@@ -38,7 +39,7 @@ func initBuffer(size int) buffer {
 }
 
 func (buf *buffer) addFile(url string, file []byte) error {
-	cap := cap(file)
+	cap := cap(file) + len([]byte(url)) + 8*B
 	if cap > buf.maxSize {
 		return fmt.Errorf("file capacity %d bigger than buf max size %d", cap, buf.maxSize)
 	}
@@ -48,7 +49,9 @@ func (buf *buffer) addFile(url string, file []byte) error {
 	val := value{
 		url:  url,
 		file: &file,
+		cap:  cap,
 	}
+
 	buf.list.PushFront(val)
 	buf.freeSize -= cap
 	return nil
@@ -70,9 +73,9 @@ func (buf *buffer) removeFile() error {
 	if buf.freeSize == buf.maxSize {
 		return fmt.Errorf("buffer empty, free size %d", buf.freeSize)
 	}
-	e := buf.list.Back()
-	cap := cap(*e.Value.(value).file)
-	buf.list.Remove(e)
+	ele := buf.list.Back()
+	cap := ele.Value.(value).cap
+	buf.list.Remove(ele)
 	buf.freeSize += cap
 	return nil
 }
