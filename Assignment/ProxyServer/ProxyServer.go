@@ -32,17 +32,25 @@ func dialServer(url string) []byte {
 	}
 	defer conn.Close()
 
-	conn.Write(reqHeader(address, fileName))
+	url = address + fileName
+	file := FileBuffer.searchAndUpdateBuffer(url)
+	if file == nil {
+		conn.Write(reqHeader(address, fileName))
 
-	// response := make([]byte, 1024)
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, conn)
-	if err != nil {
-		fmt.Println("server error:", err)
-		return nil
+		var buf bytes.Buffer
+		_, err = io.Copy(&buf, conn)
+		if err != nil {
+			fmt.Println("server error:", err)
+			return nil
+		}
+		err = FileBuffer.addFile(url, buf.Bytes())
+		if err != nil {
+			fmt.Println("add file to buffer error:", err)
+		}
+		return buf.Bytes()
+	} else {
+		return file
 	}
-
-	return buf.Bytes()
 }
 
 // var buffers map[string][]byte = make(map[string][]byte)

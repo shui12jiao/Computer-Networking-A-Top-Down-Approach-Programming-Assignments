@@ -12,7 +12,7 @@ const (
 	GB     = 1024 * MB
 )
 
-var Buffer buffer
+var FileBuffer buffer = initBuffer(2 * MB)
 
 type value struct {
 	url  string
@@ -23,6 +23,18 @@ type buffer struct {
 	list     list.List
 	maxSize  int
 	freeSize int
+}
+
+func initBuffer(size int) buffer {
+	if size < 0 {
+		size = 0
+	}
+	buf := buffer{
+		list:     *list.New().Init(),
+		maxSize:  size,
+		freeSize: size,
+	}
+	return buf
 }
 
 func (buf *buffer) addFile(url string, file []byte) error {
@@ -42,17 +54,14 @@ func (buf *buffer) addFile(url string, file []byte) error {
 	return nil
 }
 
-//TODO
-func (buf *buffer) updateBuffer(url string, file []byte) error {
-	e := list.Element{
-		Value: value{
-			url:  url,
-			file: &file,
-		},
-	}
-	buf.list.MoveToFront(&e)
-	if buf.list.Front() != &e {
-		return fmt.Errorf("update fail")
+func (buf *buffer) searchAndUpdateBuffer(url string) []byte {
+	node := buf.list.Front()
+	for i := 0; i < buf.list.Len(); i++ {
+		if node.Value.(value).url == url {
+			buf.list.MoveToFront(node)
+			return *node.Value.(value).file
+		}
+		node = node.Next()
 	}
 	return nil
 }
@@ -64,5 +73,3 @@ func (buf *buffer) removeFile() error {
 	buf.list.Remove(buf.list.Back())
 	return nil
 }
-
-//TODO
