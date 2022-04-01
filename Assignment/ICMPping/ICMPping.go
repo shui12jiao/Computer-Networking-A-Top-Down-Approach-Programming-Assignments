@@ -1,39 +1,35 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"net"
-	"os"
 	"time"
 )
 
 const ICMP_ECHO_REQUEST = 8
 
-// func checksum(str string) string {
-// 	csum := 0
-// 	countTo := (len(str) / 2) * 2
-// 	count := 0
-// 	for count < countTo {
-// 		thisVal := ord(str[count+1])*256 + ord(str[count])
-// 		csum = csum + thisVal
-// 		csum = csum & 0xffffffff
-// 		count = count + 2
-// 	}
-// 	if countTo < len(str) {
-
-// 		csum = csum + ord(str[len(str)-1])
-// 		csum = csum & 0xffffffff
-// 	}
-// 	csum = (csum >> 16) + (csum & 0xffff)
-// 	csum = csum + (csum >> 16)
-// 	answer := ^csum
-// 	answer = answer & 0xffff
-// 	answer = answer>>8 | (answer << 8 & 0xff00)
-// 	return answer
-// }
+// def checksum(string):
+// csum = 0
+// countTo = (len(string) // 2) * 2
+// count = 0
+// while count < countTo:
+// thisVal = ord(string[count+1]) * 256 + ord(string[count])
+// csum = csum + thisVal
+// csum = csum & 0xffffffff
+// count = count + 2
+// if countTo < len(string):
+// csum = csum + ord(string[len(string) - 1])
+// csum = csum & 0xffffffff
+// csum = (csum >> 16) + (csum & 0xffff)
+// csum = csum + (csum >> 16)
+// answer = ~csum
+// answer = answer & 0xffff
+// answer = answer >> 8 | (answer << 8 & 0xff00)
+// return answer
 
 // func receiveOnePing(mySocket, ID, timeout, destAddr){
-
 // 	timeLeft = timeout
 // 	while 1:
 // 	startedSelect = time.time()
@@ -111,21 +107,56 @@ type ICMP struct {
 	Sequence uint16
 }
 
-func ping(conn *net.IPConn, timeout time.Duration) {
+func checksum(raw []byte) uint16 {
+	cks := uint32(0)
+	len := 8
+	idx := 0
+	for idx < len {
+		cks += uint32(raw[idx])<<8 + uint32(raw[idx+1])
+		idx += 2
+	}
+	cks += (cks >> 16)
+	return uint16(^cks)
+}
+
+func send(conn *net.IPConn) {
+	hdr := ICMP{
+		Type:     8,
+		Code:     0,
+		Checksum: 0,
+		ID:       0,
+		Sequence: 0,
+	}
+	buf := bytes.NewBuffer(nil)
+	binary.Write(buf, binary.BigEndian, hdr)
+	hdr.Checksum = checksum(buf.Bytes())
+
+	conn.Write(buf.Bytes())
+}
+
+func receive(conn *net.IPConn) {
+	buf := make([]byte, 256)
+	conn.Read(buf)
 
 }
 
+func ping(conn *net.IPConn, timeout time.Duration) {
+	defer conn.Close()
+	send(conn)
+	receive(conn)
+}
+
 func getIP() (laddr, raddr *net.IPAddr) {
-	address := "localhost"
-	if len(os.Args) > 1 {
-		address = os.Args[1]
-	}
-	raddr, err := net.ResolveIPAddr("ip", address)
+	// address := "localhost"
+	// if len(os.Args) > 1 {
+	// 	address = os.Args[1]
+	// }
+	raddr, err := net.ResolveIPAddr("ip", "192.168.31.1") //TODO
 	if err != nil {
 		fmt.Printf("get raddr error:%s", err)
 	}
 
-	laddr, err = net.ResolveIPAddr("ip", "113.54.203.192") //TODO
+	laddr, err = net.ResolveIPAddr("ip", "localhost") //TODO
 	if err != nil {
 		fmt.Printf("get laddr error:%s", err)
 	}
