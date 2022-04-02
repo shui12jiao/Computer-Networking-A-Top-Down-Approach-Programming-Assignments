@@ -109,7 +109,7 @@ type ICMP struct {
 
 func checksum(raw []byte) uint16 {
 	cks := uint32(0)
-	len := 8
+	len := len(raw)
 	idx := 0
 	for idx < len {
 		cks += uint32(raw[idx])<<8 + uint32(raw[idx+1])
@@ -119,13 +119,37 @@ func checksum(raw []byte) uint16 {
 	return uint16(^cks)
 }
 
+func verify(raw []byte) bool {
+	sum := uint32(0)
+	len := len(raw)
+	idx := 0
+	for idx < len {
+		sum += uint32(raw[idx])<<8 + uint32(raw[idx+1])
+		idx += 2
+	}
+
+	return sum == ^uint32(0)
+}
+
+func unmarshal(raw []byte) (hdr ICMP, data string) {
+	hdr = ICMP{
+		Type:     uint8(raw[0]),
+		Code:     uint8(raw[1]),
+		Checksum: uint16(raw[2])<<8 + uint16(raw[3]),
+		ID:       uint16(raw[4])<<8 + uint16(raw[5]),
+		Sequence: uint16(raw[6])<<8 + uint16(raw[7]),
+	}
+	data = string(raw[8:])
+	return
+}
+
 func send(conn *net.IPConn) {
 	hdr := ICMP{
 		Type:     8,
 		Code:     0,
 		Checksum: 0,
-		ID:       0,
-		Sequence: 0,
+		ID:       1,
+		Sequence: 1,
 	}
 	buf := bytes.NewBuffer(nil)
 	binary.Write(buf, binary.BigEndian, hdr)
@@ -138,6 +162,13 @@ func receive(conn *net.IPConn) {
 	buf := make([]byte, 256)
 	conn.Read(buf)
 
+	right := verify(buf)
+	if !right {
+		fmt.Println("verify checksum error")
+		return
+	}
+	hdr, data := unmarshal(buf)
+	fmt.Println(hdr, data)
 }
 
 func ping(conn *net.IPConn, timeout time.Duration) {
@@ -153,12 +184,12 @@ func getIP() (laddr, raddr *net.IPAddr) {
 	// }
 	raddr, err := net.ResolveIPAddr("ip", "192.168.31.1") //TODO
 	if err != nil {
-		fmt.Printf("get raddr error:%s", err)
+		fmt.Println("get raddr error:", err)
 	}
 
-	laddr, err = net.ResolveIPAddr("ip", "localhost") //TODO
+	laddr, err = net.ResolveIPAddr("ip", "192.168.31.134") //TODO
 	if err != nil {
-		fmt.Printf("get laddr error:%s", err)
+		fmt.Println("get laddr error:", err)
 	}
 
 	return
@@ -171,11 +202,15 @@ func main() {
 		timeout      = time.Second
 	)
 	conn, err := net.DialIP("ip:icmp", laddr, raddr)
+	// conn, err := net.DialIP("ip:icmp", laddr, raddr)
 	if err != nil {
-		fmt.Printf("dial ip error:%s", err)
+		fmt.Println("dial ip error:", err)
 	}
 
 	for i := 0; i < count; i++ {
-		go ping(conn, timeout)
+		ping(conn, timeout)
+		// go ping(conn, timeout)
 	}
+
+	fmt.Println("over")
 }
