@@ -111,9 +111,12 @@ func checksum(raw []byte) uint16 {
 	cks := uint32(0)
 	len := len(raw)
 	idx := 0
-	for idx < len {
+	for len-idx > 1 {
 		cks += uint32(raw[idx])<<8 + uint32(raw[idx+1])
 		idx += 2
+	}
+	if len-idx == 1 {
+		cks += uint32(raw[idx])
 	}
 	cks += (cks >> 16)
 	return uint16(^cks)
@@ -123,12 +126,15 @@ func verify(raw []byte) bool {
 	sum := uint32(0)
 	len := len(raw)
 	idx := 0
-	for idx < len {
+	for len-idx < 1 {
 		sum += uint32(raw[idx])<<8 + uint32(raw[idx+1])
 		idx += 2
 	}
+	if len-idx == 1 {
+		sum += uint32(raw[idx])
+	}
 
-	return sum == ^uint32(0)
+	return sum == uint32(0)
 }
 
 func unmarshal(raw []byte) (hdr ICMP, data string) {
@@ -143,38 +149,49 @@ func unmarshal(raw []byte) (hdr ICMP, data string) {
 	return
 }
 
-func send(conn *net.IPConn) {
+func send(conn *net.IPConn, seq int) {
 	hdr := ICMP{
 		Type:     8,
 		Code:     0,
 		Checksum: 0,
 		ID:       1,
-		Sequence: 1,
+		Sequence: uint16(seq),
 	}
 	buf := bytes.NewBuffer(nil)
 	binary.Write(buf, binary.BigEndian, hdr)
 	hdr.Checksum = checksum(buf.Bytes())
-
+	buf.Reset()
+	binary.Write(buf, binary.BigEndian, hdr)
 	conn.Write(buf.Bytes())
 }
 
-func receive(conn *net.IPConn) {
-	buf := make([]byte, 256)
+func receive(conn *net.IPConn, seq int) {
+	buf := make([]byte, 64)
 	conn.Read(buf)
+	buf = func(b []byte) []byte {
+		if len(b) < 20 {
+			return b
+		}
+		len := (b[0] & 0x0f) << 2
+		b = b[len:]
+		return b
+	}(buf)
 
 	right := verify(buf)
 	if !right {
-		fmt.Println("verify checksum error")
+		fmt.Println("checksum wrong")
 		return
 	}
-	hdr, data := unmarshal(buf)
-	fmt.Println(hdr, data)
+	hdr, _ := unmarshal(buf)
+	if hdr.Sequence != uint16(seq) || hdr.Code != 0 || hdr.Type != 0 {
+		fmt.Println("wrong reply")
+	}
 }
 
-func ping(conn *net.IPConn, timeout time.Duration) {
+func ping(conn *net.IPConn, timeout time.Duration, seq int) {
 	defer conn.Close()
-	send(conn)
-	receive(conn)
+	send(conn, seq)
+	receive(conn, seq)
 }
 
 func getIP() (laddr, raddr *net.IPAddr) {
@@ -182,12 +199,12 @@ func getIP() (laddr, raddr *net.IPAddr) {
 	// if len(os.Args) > 1 {
 	// 	address = os.Args[1]
 	// }
-	raddr, err := net.ResolveIPAddr("ip", "192.168.31.1") //TODO
+	raddr, err := net.ResolveIPAddr("ip", "www.baidu.com") //TODO
 	if err != nil {
 		fmt.Println("get raddr error:", err)
 	}
 
-	laddr, err = net.ResolveIPAddr("ip", "192.168.31.134") //TODO
+	laddr, err = net.ResolveIPAddr("ip", "113.54.206.13") //TODO
 	if err != nil {
 		fmt.Println("get laddr error:", err)
 	}
@@ -198,7 +215,7 @@ func getIP() (laddr, raddr *net.IPAddr) {
 func main() {
 	var (
 		laddr, raddr = getIP()
-		count        = 5
+		count        = 1
 		timeout      = time.Second
 	)
 	conn, err := net.DialIP("ip:icmp", laddr, raddr)
@@ -208,7 +225,7 @@ func main() {
 	}
 
 	for i := 0; i < count; i++ {
-		ping(conn, timeout)
+		ping(conn, timeout, i)
 		// go ping(conn, timeout)
 	}
 
