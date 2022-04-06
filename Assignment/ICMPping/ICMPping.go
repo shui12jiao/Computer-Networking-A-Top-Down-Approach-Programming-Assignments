@@ -165,33 +165,56 @@ func send(conn *net.IPConn, seq int) {
 	conn.Write(buf.Bytes())
 }
 
-func receive(conn *net.IPConn, seq int) {
+func receive(conn *net.IPConn, seq int) (delay time.Duration) {
+	startTime := time.Now()
+	done := make(chan time.Duration, 1)
 	buf := make([]byte, 64)
-	conn.Read(buf)
-	buf = func(b []byte) []byte {
-		if len(b) < 20 {
-			return b
-		}
-		len := (b[0] & 0x0f) << 2
-		b = b[len:]
-		return b
-	}(buf)
+	go func() {
+		conn.Read(buf)
+		done <- time.Since(startTime)
+	}()
 
-	right := verify(buf)
-	if !right {
-		fmt.Println("checksum wrong")
-		return
+	select {
+	case delay = <-done:
+		buf = func(b []byte) []byte {
+			if len(b) < 20 {
+				return b
+			}
+			len := (b[0] & 0x0f) << 2
+			b = b[len:]
+			return b
+		}(buf)
+
+		right := verify(buf)
+		if !right {
+			fmt.Println("checksum wrong")
+			return
+		}
+		hdr, _ := unmarshal(buf)
+		if hdr.Sequence != uint16(seq) || hdr.Code != 0 || hdr.Type != 0 {
+			fmt.Println("wrong reply")
+		}
+	case <-time.After(time.Second):
+		fmt.Println("timeout")
+		delay = time.Second
 	}
-	hdr, _ := unmarshal(buf)
-	if hdr.Sequence != uint16(seq) || hdr.Code != 0 || hdr.Type != 0 {
-		fmt.Println("wrong reply")
-	}
+	return
 }
 
-func ping(conn *net.IPConn, timeout time.Duration, seq int) {
-	defer conn.Close()
+func ping(conn *net.IPConn, timeout time.Duration, seq int, recp []int) {
 	send(conn, seq)
-	receive(conn, seq)
+	delay := receive(conn, seq)
+	if delay >= time.Second {
+		fmt.Println("Request timed out.")
+	} else if delay >= time.Millisecond {
+		delay /= 1e6
+		fmt.Printf("Reply from %s: bytes=x time=%dms TTL=x\n", conn.RemoteAddr().String(), delay)
+		recp[0] += 1
+		recp = append(recp, int(delay))
+	} else {
+		fmt.Printf("Reply from %s: bytes=x time<1ms TTL=x\n", conn.RemoteAddr().String())
+		recp[0] += 1
+	}
 }
 
 func getIP() (laddr, raddr *net.IPAddr) {
@@ -219,15 +242,19 @@ func main() {
 		timeout      = time.Second
 	)
 	conn, err := net.DialIP("ip:icmp", laddr, raddr)
-	// conn, err := net.DialIP("ip:icmp", laddr, raddr)
 	if err != nil {
 		fmt.Println("dial ip error:", err)
+		return
 	}
+	defer conn.Close()
 
+	recp := make([]int, 1, count+1)
+	fmt.Printf("Pinging baidu.com [%s] with 32 bytes of data:\n", conn.RemoteAddr().String())
 	for i := 0; i < count; i++ {
-		ping(conn, timeout, i)
-		// go ping(conn, timeout)
+		ping(conn, timeout, i, recp)
+		// go ping(conn, timeout)--使用多线程需要(加锁|sleep|通道)
 	}
-
-	fmt.Println("over")
+	fmt.Printf("\nPing statistics for %s:\n", conn.RemoteAddr().String())
+	fmt.Printf("    Packets: Sent = %d, Received = %d, Lost = %d (%d% loss),", count, recp[0], count-recp[0], (count-recp[0])/count*100)
+	fmt.Println("Approximate round trip times in milli-seconds:") //TODO
 }
