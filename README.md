@@ -6,5 +6,5 @@ University second-year computer network course programming assignments (Go)
 - [x] SMTP
 - [x] ProxyServer
 - [ ] Traceoute
-- [ ] ICMPping
+- [x] ICMPping
 - [ ] VideoStreaming
